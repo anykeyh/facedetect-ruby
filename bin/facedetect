@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+
+
+require File.join(File.expand_path("../../lib", __FILE__), "facedetect.rb")
+
+faces = ""
+
+puts = Facedetect::run(ARGV).each do |face|
+  faces << face.to_s << "\n"
+end
+
+puts faces unless faces.empty?
