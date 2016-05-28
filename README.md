@@ -55,6 +55,10 @@ Facedetect::run("-o test.jpg", "input.jpg").each do |face|
 end
 ```
 
+All the arguments of [facedetect](https://www.thregr.org/~wavexx/software/facedetect/) can be used. Please check the documentation of the lib for more info.
+`facedetect-ruby` add however the new argument `--strict` which help to remove the false positives discrimining the output through multiple cascades.
+
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/anykeyh/facedetect. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [Contributor Covenant](http://contributor-covenant.org) code of conduct.
