@@ -22,7 +22,10 @@ DATA_DIR = os.environ['FACEDETECT_RB_PATH']
 CASCADES = {}
 
 PROFILES = {
+    'HAAR_FRONTALFACE_ALT_TREE': 'haarcascades/haarcascade_frontalface_alt_tree.xml',
     'HAAR_FRONTALFACE_ALT2': 'haarcascades/haarcascade_frontalface_alt2.xml',
+    'HAAR_FRONTALFACE_ALT': 'haarcascades/haarcascade_frontalface_alt.xml',
+    'HAAR_FRONTALFACE_DEFAULT': 'haarcascades/haarcascade_frontalface_default.xml',
 }
 
 
@@ -133,7 +136,7 @@ def mssim_norm(X, Y, K1=0.01, K2=0.03, win_size=11, sigma=1.5):
     return np.mean(shave_margin(S, (win_size - 1) // 2))
 
 
-def face_detect(im, biggest=False):
+def face_detect(im, biggest=False, cascade='HAAR_FRONTALFACE_ALT2'):
     side = math.sqrt(im.size)
     minlen = int(side / 20)
     maxlen = int(side / 2)
@@ -144,10 +147,57 @@ def face_detect(im, biggest=False):
         flags |= cv2.cv.CV_HAAR_FIND_BIGGEST_OBJECT
 
     # frontal faces
-    cc = CASCADES['HAAR_FRONTALFACE_ALT2']
+    cc = CASCADES[cascade]
     features = cc.detectMultiScale(im, 1.1, 4, flags, (minlen, minlen), (maxlen, maxlen))
     return features
 
+def keep_multi_features(first, *other_features):
+  keep = []
+
+  for rect in first:
+    # Tolerance for multiple detection is equal to 10% of the size of the detection rectangle
+    tolerance = 0.05 * ((rect[2]+rect[3])/2)
+
+    cx_1 = rect[0] + rect[2]/2
+    cy_1 = rect[1] + rect[3]/2
+
+    do_not_keep = False
+
+    for other_feature in other_features:
+        do_not_keep = True
+
+        for rect2 in other_feature:
+            cx_2 = rect2[0] + rect2[2]/2
+            cy_2 = rect2[1] + rect2[3]/2
+
+
+            if abs(cx_1 - cx_2) <= tolerance and abs(cy_1 - cy_2) <= tolerance:
+                do_not_keep = False
+                break
+
+        if do_not_keep:
+            break
+
+    if not do_not_keep:
+        keep.append(rect)
+
+  return keep
+
+
+def face_detect_file_strict(path, biggest=False):
+    im = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    if im is None:
+        fatal("cannot load input image {}".format(path))
+    im = cv2.equalizeHist(im)
+
+    features1 = face_detect(im, biggest, "HAAR_FRONTALFACE_DEFAULT")
+    features2 = face_detect(im, biggest, "HAAR_FRONTALFACE_ALT")
+    features3 = face_detect(im, biggest, "HAAR_FRONTALFACE_ALT2")
+    features4 = face_detect(im, biggest, "HAAR_FRONTALFACE_ALT_TREE")
+
+    features = keep_multi_features(features1, features2, features3, features4)
+
+    return im, features
 
 def face_detect_file(path, biggest=False):
     im = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -156,7 +206,6 @@ def face_detect_file(path, biggest=False):
     im = cv2.equalizeHist(im)
     features = face_detect(im, biggest)
     return im, features
-
 
 def pairwise_similarity(im, features, template, **mssim_args):
     template = np.float32(template) / 255
@@ -185,13 +234,17 @@ def __main__():
     ap.add_argument('-o', '--output', help='Image output file')
     ap.add_argument('-d', '--debug', action="store_true",
                     help='Add debugging metrics in the image output file')
+    ap.add_argument('--strict', action="store_true", help='Use multiple cascade reject to false positives')
     ap.add_argument('file', help='Input image file')
     args = ap.parse_args()
 
     load_cascades(args.data_dir)
 
     # detect faces in input image
-    im, features = face_detect_file(args.file, args.query or args.biggest)
+    if args.strict:
+        im, features = face_detect_file_strict(args.file, args.query or args.biggest)
+    else:
+        im, features = face_detect_file(args.file, args.query or args.biggest)
 
     # match against the requested face
     sim_scores = None

@@ -43,6 +43,10 @@ On Mac OSX using homebrew:
       "python " + File.join(LIB_PATH, "facedetect.py")
     end
 
+    def strict_run *args
+
+    end
+
     def run *args
       begin
         out = ""
