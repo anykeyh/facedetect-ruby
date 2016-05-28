@@ -35,7 +35,6 @@ And then execute:
 
 Or install it yourself using [specific_install](https://github.com/rdp/specific_install) as:
 
-    $ gem install specific_install
     $ gem specific_install https://github.com/anykeyh/facedetect-ruby.git
 
 ## Usage
